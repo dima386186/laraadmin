@@ -67,10 +67,14 @@
 <div class="container">
     <div class="panel panel-default">
         <div class="panel-heading">
-            @foreach( $currencies as $currency )
-                <span class="currenciesName @if( $currency->name == $firstName ) activeCurrency @endif" data-id="{{ $currency->id }}">{{ $currency->name }}</span>
-            @endforeach
-                <button type="button" class="btn btn-xs pull-right" data-toggle="modal" data-target="#myModal"><i class="fa fa-eye" aria-hidden="true"></i></button>
+            @if( count( $currencies ) )
+                @foreach( $currencies as $currency )
+                    <span class="currenciesName @if( $currency->name == $firstName ) activeCurrency @endif" data-id="{{ $currency->id }}">{{ $currency->name }}</span>
+                @endforeach
+            @else
+                <span>Not Currencies</span>
+            @endif
+            <button type="button" class="btn btn-xs pull-right" data-toggle="modal" data-target="#myModal"><i class="fa fa-eye" aria-hidden="true"></i></button>
         </div>
         <div class="panel-body">
             <canvas id="myChart" width="100" height="50"></canvas>
@@ -121,29 +125,34 @@
 
     function buildChart( labels, rates ) {
 
-        var ctx = $("#myChart");
+        if ( labels && rates ) {
 
-        var labels = labels.split( ',' );
-        var rates = rates.split( ',' );
+            var ctx = $("#myChart");
 
-        var data = {
-            labels: labels,
-            datasets: [
-                {
-                    label: 'chart',
-                    data: rates
-                }
-            ]
-        };
+            var labels = labels.split( ',' );
+            var rates = rates.split( ',' );
 
-        chart = new Chart(ctx, {
-            type: 'line',
-            data: data
-        });
+            var data = {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'chart',
+                        data: rates
+                    }
+                ]
+            };
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: data
+            });
+        }
     }
 
     function destroyChart() {
-        chart.destroy();
+        if ( chart ) {
+            chart.destroy();
+        }
     }
 
 </script>

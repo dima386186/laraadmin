@@ -39,9 +39,11 @@ class HomeController extends Controller
 
 		$defaultData = $this->getData( $first, $this->defaultCountDays );
 
+		$firstName = $first != null ? $first->name : '';
+
 		return view( 'home', [
 			'currencies' => $currencies,
-			'firstName'  => $first->name,
+			'firstName'  => $firstName,
 			'rates'      => $defaultData['rates'],
 			'labels'     => $defaultData['labels']
 		] );
@@ -98,13 +100,15 @@ class HomeController extends Controller
 		$rates  = [];
 		$labels = [];
 
-		$histories = $currency->histories->sortBy( 'date' );
+		if ( $currency != null ) {
+			$histories = $currency->histories->sortBy( 'date' );
 
-		foreach ( $histories as $history ) {
-			if ( $history->date > Carbon::now()->subDays( $countDays ) ) {
-				$rates[]  = $history->rate;
-				$time     = strtotime( $history->date );
-				$labels[] = date( 'd.m', $time );
+			foreach ( $histories as $history ) {
+				if ( $history->date > Carbon::now()->subDays( $countDays ) ) {
+					$rates[]  = $history->rate;
+					$time     = strtotime( $history->date );
+					$labels[] = date( 'd.m', $time );
+				}
 			}
 		}
 
@@ -182,13 +186,16 @@ class HomeController extends Controller
 		$multiCurl->success( function ( $data ) {
 
 			$res  = $data->response;
-			$rate = $res[0]->rate;
 
-			History::create( [
-				'Currency' => $GLOBALS['currency']->id,
-				'date'     => $GLOBALS['date'],
-				'rate'     => $rate
-			] );
+			if ( count( $res ) ) {
+				$rate = $res[0]->rate;
+
+				History::create( [
+					'Currency' => $GLOBALS['currency']->id,
+					'date'     => $GLOBALS['date'],
+					'rate'     => $rate
+				] );
+			}
 		} );
 
 		$multiCurl->error( function ( $data ) {
