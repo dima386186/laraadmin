@@ -19,6 +19,8 @@ class CreateHistoriesTable extends Migration
     {
         Module::generate("Histories", 'histories', 'Currency', 'fa-suitcase', [
             ["Currency", "Currency Id", "Dropdown", false, "", 0, 0, true, "@currencies"],
+            ["rate", "Rate", "Currency", false, "", 0, 11, false],
+            ["date", "Date", "Date", false, "", 0, 0, false],
         ]);
 		
 		/*
