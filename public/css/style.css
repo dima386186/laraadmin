@@ -1,0 +1,12 @@
+.currenciesName {
+    margin: 0 15px 0 15px;
+}
+
+.currenciesName:hover, .currencyPeriod:hover {
+    cursor: pointer;
+}
+
+.activeCurrency {
+    color: maroon;
+    border-bottom: solid 2px maroon;
+}
