@@ -193,7 +193,12 @@ class CurrenciesController extends Controller
 	public function destroy($id)
 	{
 		if(Module::hasAccess("Currencies", "delete")) {
-			Currency::find($id)->delete();
+
+			$currency = Currency::find($id);
+			foreach ( $currency->histories as $history ) {
+				$history->delete();
+			}
+			$currency->delete();
 			
 			// Redirecting to index() method
 			return redirect()->route(config('laraadmin.adminRoute') . '.currencies.index');
