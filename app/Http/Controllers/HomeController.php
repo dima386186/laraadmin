@@ -43,7 +43,7 @@ class HomeController extends Controller
 	 */
 	public function index()
 	{
-		$currencies = $this->checkHistoryNew();
+		$currencies = $this->checkHistory();
 
 		$first = $currencies->first();
 
@@ -64,8 +64,7 @@ class HomeController extends Controller
 	 *
 	 * @return array
 	 */
-	public function ajaxDataInPeriod( Request $request )
-	{
+	public function ajaxDataInPeriod( Request $request ) {
 		if ( $request->ajax() ) {
 			$id            = $request->get( 'id' );
 			$requestPeriod = $request->get( 'period' );
@@ -85,8 +84,7 @@ class HomeController extends Controller
 	 *
 	 * @return array
 	 */
-	public function ajaxDefaultData( Request $request )
-	{
+	public function ajaxDefaultData( Request $request ) {
 		if ( $request->ajax() ) {
 			$id       = $request->get( 'id' );
 			$currency = Currency::find( $id );
@@ -131,7 +129,7 @@ class HomeController extends Controller
 	/**
 	 * @return \Illuminate\Database\Eloquent\Collection|static[]
 	 */
-	public function checkHistoryNew()
+	public function checkHistory()
 	{
 		$currencies = Currency::all();
 
@@ -149,31 +147,31 @@ class HomeController extends Controller
 	 */
 	public function historySystem( $currencies )
 	{
-		$max = $this->allDays;
 		$checkFullHistoryWork = array();
 
 		foreach ( $currencies as $currency ) {
 			$this->currencyNames[] = array(
-				'name' => strtoupper($currency->name),
-				'id' => $currency->id
+				'name' => strtoupper( $currency->name ),
+				'id'   => $currency->id
 			);
 
 			if ( ! count( $currency->histories ) ) {
-				$this->createCurrencyHistoryNew( $currency, $max );
+				$this->createCurrencyHistory( $currency, $this->allDays );
 			} else {
 				$checkFullHistoryWork[] = 1;
 			}
 		}
 
 		if ( count( $checkFullHistoryWork ) ) {
-			$this->newRatesNew( $currencies );
+			$this->newRates( $currencies );
 		}
 	}
 
 	/**
 	 * @param object $currency
+	 * @param integer $max
 	 */
-	public function createCurrencyHistoryNew( $currency, $max )
+	public function createCurrencyHistory( $currency, $max )
 	{
 		for ( $i = 0; $i <= $max; $i ++ ) {
 
@@ -186,7 +184,7 @@ class HomeController extends Controller
 	/**
 	 * @param Currency[] $currencies
 	 */
-	public function newRatesNew( $currencies )
+	public function newRates( $currencies )
 	{
 		$results = DB::select( "SELECT id FROM `histories` WHERE DATE(`date`) = CURDATE() LIMIT 1" );
 
@@ -222,12 +220,12 @@ class HomeController extends Controller
 	public function curlSuccess()
 	{
 		$this->multiCurl->success( function ( $data ) {
-			$res  = $data->response;
+			$res = $data->response;
 
 			if ( count( $res ) ) {
 
-				$rate = $res[0]->rate;
-				$date = date("Y-m-d", strtotime($res[0]->exchangedate));
+				$rate         = $res[0]->rate;
+				$date         = date( "Y-m-d", strtotime( $res[0]->exchangedate ) );
 				$currencyName = $res[0]->cc;
 
 				$needId = array();
