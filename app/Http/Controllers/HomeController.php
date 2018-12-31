@@ -12,6 +12,16 @@ use DB;
 class HomeController extends Controller
 {
 	/**
+	 * @var $multiCurl
+	 */
+	public $multiCurl;
+
+	/**
+	 * @var array
+	 */
+	public $currencyNames = array();
+
+	/**
 	 * @var int
 	 */
 	public $defaultCountDays = 3;
@@ -33,7 +43,7 @@ class HomeController extends Controller
 	 */
 	public function index()
 	{
-		$currencies = $this->checkHistory();
+		$currencies = $this->checkHistoryNew();
 
 		$first = $currencies->first();
 
@@ -121,17 +131,15 @@ class HomeController extends Controller
 	/**
 	 * @return \Illuminate\Database\Eloquent\Collection|static[]
 	 */
-	public function checkHistory()
+	public function checkHistoryNew()
 	{
 		$currencies = Currency::all();
 
-		foreach ( $currencies as $currency ) {
-			if ( ! count( $currency->histories ) ) {
-				$this->createCurrencyHistory( $currency );
-			}
-		}
+		$this->multiCurl = new MultiCurl;
 
-		$this->newRates( $currencies );
+		$this->historySystem( $currencies );
+
+		$this->multiCurl->start();
 
 		return Currency::all();
 	}
@@ -139,29 +147,34 @@ class HomeController extends Controller
 	/**
 	 * @param Currency[] $currencies
 	 */
-	public function newRates( $currencies )
+	public function historySystem( $currencies )
 	{
-		$results = DB::select( "SELECT id FROM `histories` WHERE DATE(`date`) = CURDATE() LIMIT 1" );
+		$max = $this->allDays;
+		$checkFullHistoryWork = array();
 
-		if ( ! count( $results ) ) {
+		foreach ( $currencies as $currency ) {
+			$this->currencyNames[] = array(
+				'name' => strtoupper($currency->name),
+				'id' => $currency->id
+			);
 
-			$date = date( 'Ymd', strtotime( 'now' ) );
-
-			foreach ( $currencies as $currency ) {
-				$this->multiCurlWork( $date, $currency );
+			if ( ! count( $currency->histories ) ) {
+				$this->createCurrencyHistoryNew( $currency, $max );
+			} else {
+				$checkFullHistoryWork[] = 1;
 			}
+		}
 
-			DB::delete( "DELETE FROM `histories` WHERE DATE(`date`) < NOW() - INTERVAL 15 DAY" );
+		if ( count( $checkFullHistoryWork ) ) {
+			$this->newRatesNew( $currencies );
 		}
 	}
 
 	/**
 	 * @param object $currency
 	 */
-	public function createCurrencyHistory( $currency )
+	public function createCurrencyHistoryNew( $currency, $max )
 	{
-		$max = $this->allDays;
-
 		for ( $i = 0; $i <= $max; $i ++ ) {
 
 			$date = $i < 1 ? date( 'Ymd', strtotime( 'now' ) ) : date( 'Ymd', strtotime( "- {$i} day" ) );
@@ -171,41 +184,82 @@ class HomeController extends Controller
 	}
 
 	/**
+	 * @param Currency[] $currencies
+	 */
+	public function newRatesNew( $currencies )
+	{
+		$results = DB::select( "SELECT id FROM `histories` WHERE DATE(`date`) = CURDATE() LIMIT 1" );
+
+		if ( ! count( $results ) ) {
+
+			$date = date( 'Ymd', strtotime( 'now' ) );
+
+			foreach ( $currencies as $currency ) {
+
+				$this->multiCurlWork( $date, $currency );
+			}
+
+			DB::delete( "DELETE FROM `histories` WHERE DATE(`date`) < NOW() - INTERVAL 15 DAY" );
+		}
+	}
+
+	/**
 	 * @param string $date
 	 * @param object $currency
 	 */
 	public function multiCurlWork( $date, $currency )
 	{
-		$multiCurl = new MultiCurl;
+		$this->multiCurl->addGet( "https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?valcode={$currency->name}&date={$date}&json" );
 
-		$GLOBALS['date']     = $date;
-		$GLOBALS['currency'] = $currency;
+		$this->curlSuccess();
 
-		$multiCurl->addGet( "https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?valcode={$currency->name}&date={$date}&json" );
+		$this->curlError();
+	}
 
-		$multiCurl->success( function ( $data ) {
-
+	/**
+	 * @return void
+	 */
+	public function curlSuccess()
+	{
+		$this->multiCurl->success( function ( $data ) {
 			$res  = $data->response;
 
 			if ( count( $res ) ) {
-				$rate = $res[0]->rate;
 
-				History::create( [
-					'Currency' => $GLOBALS['currency']->id,
-					'date'     => $GLOBALS['date'],
-					'rate'     => $rate
-				] );
+				$rate = $res[0]->rate;
+				$date = date("Y-m-d", strtotime($res[0]->exchangedate));
+				$currencyName = $res[0]->cc;
+
+				$needId = array();
+				foreach ( $this->currencyNames as $key => $value ) {
+					if ( $value['name'] == $currencyName ) {
+						$needId[] = $value['id'];
+						break;
+					}
+				}
+
+				if ( count( $needId ) ) {
+					History::create( [
+						'Currency' => $needId[0],
+						'date'     => $date,
+						'rate'     => $rate
+					] );
+				}
 			}
 		} );
+	}
 
-		$multiCurl->error( function ( $data ) {
+	/**
+	 * @return void
+	 */
+	public function curlError()
+	{
+		$this->multiCurl->error( function ( $data ) {
 			$this->errors[] = array(
 				'url'          => $data->url,
 				'errorCode'    => $data->errorCode,
 				'errorMessage' => $data->errorMessage
 			);
 		} );
-
-		$multiCurl->start();
 	}
 }
